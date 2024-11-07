@@ -3,6 +3,7 @@ This application captures retransmitted TCP packets to add them to a .ovpn file.
 
 ## Requirements
 To run this script you'll need Python>=3.9 and install the requirements.txt.
+Am not sure if the script will run on Linux systems, but if you have a linux machine and not lazy enough to try, give it a shot.
 
 ## Usage Example
 1. Insert or Edit your .ovpn file in the script's folder.
