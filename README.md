@@ -1,6 +1,9 @@
 # OpenVPN Route Capture Script
 This application captures retransmitted TCP packets to add them to a .ovpn file. If you have an OpenVPN server, you can use this script to modify your client.ovpn file and add routes to applications that don't work due to regional restrictions, rather than routing your entire PC through the VPN.
 
+## Requirements
+To run this script you'll need Python>=3.9 and install the requirements.txt.
+
 ## Usage Example
 1. Insert or Edit your .ovpn file in the script's folder.
 2. Start the script.
