@@ -72,35 +72,6 @@ def resolve_ips(ips):
     print("Resolving IPs...")
     resolved_ips = {}
     unresolved_ips = []
-    
-    for ip in ips:
-        try:
-            # Perform reverse DNS lookup
-            host_info = socket.gethostbyaddr(ip)
-            host_name = host_info[0]
-            print(f"Resolved {ip} to {host_name}")
-            resolved_ips[host_name] = []
-            
-            # Now resolve the domain name back to IP addresses
-            answers = dns.resolver.resolve(host_name, 'A')
-            for rdata in answers:
-                resolved_ips[host_name].append(rdata.address)
-        except (socket.error, dns.resolver.NoNameservers, dns.resolver.NXDOMAIN, dns.exception.Timeout, dns.resolver.NoAnswer) as e:
-            print(f"Could not resolve {ip}: {e}")
-            unresolved_ips.append(ip)
-    
-    print(f"Total IPs resolved: {sum(len(v) for v in resolved_ips.values())}")
-    print(f"Total IPs unresolved: {len(unresolved_ips)}")
-    
-    return resolved_ips, unresolved_ips
-
-import socket
-import dns.resolver
-
-def resolve_ips(ips):
-    print("Resolving IPs...")
-    resolved_ips = {}
-    unresolved_ips = []
 
     for ip in ips:
         try:
