@@ -8,7 +8,6 @@ import sys
 import re
 
 SCRIPT_DIRECTORY = os.path.dirname(os.path.abspath(sys.argv[0])) 
-OVPN_PATH = "./client.ovpn"
 
 def get_default_interface():
     print("Getting adapter...")
@@ -27,17 +26,17 @@ def capture_packets(interface, duration):
     print(f"Starting packet capture on {interface} for {duration} seconds...")
     capture = pyshark.LiveCapture(interface=interface)
     capture.sniff(timeout=duration)
-    print(f"Finished packet capture. Total packets captured: {len(capture)}")
-    MAX_PACKETS_TO_ANALYZE = len(capture)  # Maximum number of packets to analyze
-    return capture, MAX_PACKETS_TO_ANALYZE
+    packets_caputred = len(capture)
+    print(f"Finished packet capture. Total packets captured: {packets_caputred}")
+    return capture, packets_caputred
 
-def analyze_packets(packets, MAX_PACKETS_TO_ANALYZE):
-    print("Analyzing packets...")
+def analyze_packets(packets, packets_caputred):
+    print(f"Analyzing {packets_caputred} packets...")
     failed_ips = []
     total_packets = len(packets)
     for index, packet in enumerate(packets):
-        if index >= MAX_PACKETS_TO_ANALYZE:
-            print(f"Reached maximum packets to analyze ({MAX_PACKETS_TO_ANALYZE}). Stopping analysis.")
+        if index >= packets_caputred:
+            print(f"All packets ({packets_caputred}) were analyzed. Stopping analysis.")
             break
         if 'TCP' in packet:
             try:
@@ -51,7 +50,7 @@ def analyze_packets(packets, MAX_PACKETS_TO_ANALYZE):
     print(f"Total failed domains found: {len(failed_ips)}")
     return failed_ips
 
-def sort_ips(ips):
+def filter_and_sort_ips(ips):
     print("Sorting IPs...")
     unique_ips = set()  # Using a set to track unique IPs for efficiency
     sorted_ips = []
@@ -65,7 +64,7 @@ def sort_ips(ips):
                 unique_ips.add(ip)
                 sorted_ips.append(ip)
     
-    print(f"Sorted list: \n {sorted_ips}")
+    print(f"Filtered list: \n {sorted_ips}")
     return sorted_ips
 
 def resolve_ips(ips):
@@ -99,86 +98,6 @@ def resolve_ips(ips):
     print(f"Total IPs unresolved: {len(unresolved_ips)}")
 
     return resolved_ips, unresolved_ips
-
-def update_ovpn_file(resolved_ips, unresolved_ips, ovpn_filename):
-    print("Updating .ovpn file...")
-    
-    # Read the existing .ovpn file
-    try:
-        with open(ovpn_filename, 'r') as f:
-            ovpn_content = f.readlines()
-    except FileNotFoundError:
-        ovpn_content = []
-
-    # Ensure routes are added after 'route-nopull' line
-    route_nopull_index = next((index for index, line in enumerate(ovpn_content) if 'route-nopull' in line), None)
-    
-    # Track existing sections
-    existing_sections = {line.strip(): True for line in ovpn_content if line.strip().startswith("#")}
-    found_unbound = "# Unbound IPs" in existing_sections
-    try:
-        with open(ovpn_filename, 'w') as f:
-            if route_nopull_index is not None:
-                for idx, line in enumerate(ovpn_content):
-                    f.write(line)
-                    if idx == route_nopull_index:
-                        # Append unresolved IPs
-                        if unresolved_ips:
-                            if not found_unbound:
-                                f.write("# Unbound IPs\n")
-                                found_unbound = True
-                            for ip in unresolved_ips:
-                                route_line = f"route {ip} 255.255.255.255\n"
-                                if route_line not in ovpn_content:
-                                    f.write(route_line)
-                        
-                        # Append resolved IPs under respective host headers
-                        for host_name, ip_list in resolved_ips.items():
-                            host_header = f"# {host_name}"
-                            if host_header not in existing_sections:
-                                f.write(f"{host_header}\n")
-                                existing_sections[host_header] = True
-
-                            for ip in ip_list:
-                                route_line = f"route {ip} 255.255.255.255\n"
-                                if route_line not in ovpn_content:
-                                    f.write(route_line)
-            else:
-                # Add route-nopull line if not found
-                f.write("route-nopull\n")
-                if unresolved_ips:
-                    if not found_unbound:
-                        f.write("# Unbound IPs\n")
-                        found_unbound = True
-                    for ip in unresolved_ips:
-                        route_line = f"route {ip} 255.255.255.255\n"
-                        if route_line not in ovpn_content:
-                            f.write(route_line)
-
-                for host_name, ip_list in resolved_ips.items():
-                    host_header = f"# {host_name}"
-                    if host_header not in existing_sections:
-                        f.write(f"{host_header}\n")
-                        existing_sections[host_header] = True
-                    for ip in ip_list:
-                        route_line = f"route {ip} 255.255.255.255\n"
-                        if route_line not in ovpn_content:
-                            f.write(route_line)
-                
-                # Write the remaining content
-                f.writelines(ovpn_content)
-    except FileNotFoundError as e:
-        print(f'Error! .ovpn file not found. Are you sure it exists in {SCRIPT_DIRECTORY} and named client.ovpn?')
-
-    print("Finished updating .ovpn file.")
-
-
-### HELPERS
-
-def check_if_ovpn_exists():
-    if os.path.isfile(OVPN_PATH):
-        return
-    raise(f"ERROR! .ovpn file not found in {OVPN_PATH}! STOPPING...")
 
 
 PP_SOFTWARE_FUNNYSIGN = """
@@ -232,24 +151,31 @@ PP_SOFTWARE_FUNNYSIGN = """
 def main(duration):
     interface = get_default_interface()
     print(f"Adapter found: {interface}")
-    packets, MAX_PACKETS_TO_ANALYZE = capture_packets(interface, duration)
-    failed_list = analyze_packets(packets, MAX_PACKETS_TO_ANALYZE)
-    sorted_list = sort_ips(failed_list)
+    packets, packets_caputred = capture_packets(interface, duration)
+    failed_list = analyze_packets(packets, packets_caputred)
+    sorted_list = filter_and_sort_ips(failed_list)
     resolved_ips, unresolved_ips = resolve_ips(sorted_list)
-    update_ovpn_file(resolved_ips, unresolved_ips, OVPN_PATH)
 
+    print("Resolved IPs:")
+    for host, ips in resolved_ips.items():
+        print(f"{host}: {', '.join(ips)}")
+    print("\nUnresolved IPs:")
+    for ip in unresolved_ips:
+        print(ip)
+
+    print("\nAnalysis complete. Exiting...")
+    exit(0)
 
 if __name__ == "__main__":
     PP_SOFTWARE_FUNNYSIGN = PP_SOFTWARE_FUNNYSIGN.split('\n')
     for line in PP_SOFTWARE_FUNNYSIGN:
         print(line)
         time.sleep(0.01)
-    check_if_ovpn_exists()
     waiting_for_user = True
     while waiting_for_user:
         duration = input("Please, input how many seconds you want to capture packets for: ")
         if duration:
-            duration = re.sub("[^0-9]", "", duration)
+            duration = re.sub(r"\D", "", duration)
             try:
                 duration = int(duration)
                 waiting_for_user = False
