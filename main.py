@@ -88,7 +88,7 @@ def resolve_ips(ips):
             for rdata in answers:
                 if rdata.address not in resolved_ips[host_name]:
                     i+=1
-                    print(f"A record #{i} for {host_name}: {ip} ")
+                    print(f"A record #{i} for {host_name}: {rdata.address}")
                     resolved_ips[host_name].append(rdata.address)
         except (socket.error, dns.resolver.NoNameservers, dns.resolver.NXDOMAIN, dns.exception.Timeout, dns.resolver.NoAnswer) as e:
             print(f"Could not resolve {ip}: {e}")
